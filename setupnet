@@ -1,0 +1,73 @@
+#!/bin/bash
+
+create_ep_and_port () {
+    mac_addr=$1
+    ap_name=$2
+    ep_name=$3
+    pub_net=$4
+    neutron external-port-create -f shell --variable id $mac_addr $ap_name --name $ep_name
+    port_id=`neutron external-port-attach $ep_name`
+    echo "Attached port_id: $port_id"
+}
+
+if [ $# -lt 1 ]; then
+    #echo "./setupnet network attachment_point_ip"
+    echo "./setupnet <network> <do_all>"
+    echo "     network - is implicitly /24"
+    echo "     do_all  - specifies if all the process should be carried out"
+    echo "               (including creating and attaching external ports),"
+    echo "               and can be any string with positive length."
+    exit 1
+fi
+
+echo "[INFO] Don't forget to enable forwarding at intermediary nodes."
+echo "[INFO] Don't forget to correct any default routes at both ends."
+echo
+
+DO_ALL=$2
+
+PUBLIC_NET=public
+NET_NAME=mynet
+SUBNET_NAME=mysubnet
+ROUTER_NAME=router1
+DRIVER=openwrt
+#DRIVER=etherswitch
+IDENTIFIER="usr=root;pwd=password;ssid_name=ap_alunos;ssid_pass=atnogatnog;" #openwrt
+#IDENTIFIER="pwd=cisco;port=6;" #etherswitch
+TECHNOLOGY="gre"
+AP_NAME=myapoint
+#IP_ADDRESS=$2
+IP_ADDRESS="196.0.0.20"
+
+OUTPUT=`neutron net-create -f shell --variable id $NET_NAME`
+NET_ID=`echo $OUTPUT | cut -d '"' -f 2`
+echo $OUTPUT
+
+neutron subnet-create -f shell --variable id $NET_NAME $1/24 --name $SUBNET_NAME
+
+echo "Setting up DNS server address in DHCP server..."
+neutron subnet-update $SUBNET_NAME --dns_nameservers list=true 8.8.8.8
+
+neutron router-interface-add $ROUTER_NAME $SUBNET_NAME
+neutron attachment-point-create -f shell --variable id $IP_ADDRESS $DRIVER $IDENTIFIER $TECHNOLOGY --name $AP_NAME
+neutron attachment-point-attach $AP_NAME $NET_NAME
+
+if [ -z "$DO_ALL" ]
+then
+    exit
+fi
+
+create_ep_and_port 00:00:00:00:00:00 $AP_NAME myep $PUBLIC_NET
+# add your external ports here
+
+sleep  1
+
+# Start a VM to spawn dnsmasq: TODO: avoid by fixing OVS port bindings.
+OUTPUT=`nova boot --flavor m1.nano --image cirros-0.3.2-x86_64-uec --nic net-id=$NET_ID ${NET_NAME}_vm`
+echo "Spawning a VM to start DHCP server as well"
+for i in {1..12}
+do
+    echo -n "."
+    sleep 0.5
+done
+echo "Ready!"

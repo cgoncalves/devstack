@@ -1,0 +1,33 @@
+[[local|localrc]]
+HOST_IP=172.16.99.133
+
+DEST=/opt/stack
+#OFFLINE=True
+#RECLONE=yes
+
+disable_service n-net
+enable_service q-svc
+enable_service q-agt
+enable_service q-dhcp
+enable_service q-l3
+enable_service q-meta
+enable_service n-ext
+enable_service neutron
+
+ADMIN_PASSWORD=password
+MYSQL_PASSWORD=$ADMIN_PASSWORD
+RABBIT_PASSWORD=$ADMIN_PASSWORD
+SERVICE_PASSWORD=$ADMIN_PASSWORD
+SERVICE_TOKEN=token
+
+LOGFILE=$DEST/logs/stack.sh.log
+LOGDAYS=7
+SCREEN_LOGDIR=$DEST/logs/screen
+SYSLOG=False
+
+MYBRANCH=ep
+MYPREFIX=git@github.com:igordcard
+NEUTRON_REPO=$MYPREFIX/neutron.git
+NEUTRON_BRANCH=$MYBRANCH
+NEUTRONCLIENT_REPO=$MYPREFIX/python-neutronclient.git
+NEUTRONCLIENT_BRANCH=$MYBRANCH

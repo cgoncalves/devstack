@@ -289,6 +289,10 @@ function configure_neutron {
     if is_service_enabled q-meta; then
         _configure_neutron_metadata_agent
     fi
+    # external-port - igordcard
+    if is_service_enabled n-ext; then
+        _configure_neutron_external_agent
+    fi
 
     _configure_neutron_debug_command
 }
@@ -490,6 +494,7 @@ function start_neutron_agents {
     screen_it q-dhcp "cd $NEUTRON_DIR && python $AGENT_DHCP_BINARY --config-file $NEUTRON_CONF --config-file=$Q_DHCP_CONF_FILE"
 
     L3_CONF_FILES="--config-file $NEUTRON_CONF --config-file=$Q_L3_CONF_FILE"
+    EXT_CONF_FILES="--config-file $NEUTRON_CONF --config-file=$N_EXT_CONF_FILE"
 
     if is_service_enabled q-fwaas; then
         L3_CONF_FILES="$L3_CONF_FILES --config-file $Q_FWAAS_CONF_FILE"
@@ -499,6 +504,8 @@ function start_neutron_agents {
     else
         screen_it q-l3 "cd $NEUTRON_DIR && python $AGENT_L3_BINARY $L3_CONF_FILES"
     fi
+
+    screen_it n-ext "cd $NEUTRON_DIR && python $AGENT_EXT_BINARY $EXT_CONF_FILES"
 
     screen_it q-meta "cd $NEUTRON_DIR && python $AGENT_META_BINARY --config-file $NEUTRON_CONF --config-file=$Q_META_CONF_FILE"
 
@@ -773,6 +780,21 @@ function _configure_neutron_service {
 
     # Configure plugin
     neutron_plugin_configure_service
+}
+
+# external-port - igordcard
+function _configure_neutron_external_agent {
+    local cfg_file
+    N_EXT_ENABLED=True
+
+    AGENT_EXT_BINARY=${AGENT_EXT_BINARY:-"$NEUTRON_BIN_DIR/neutron-external-agent"}
+    N_EXT_CONF_FILE=$NEUTRON_CONF_DIR/external_agent.ini
+
+    cp $NEUTRON_DIR/etc/external_agent.ini $N_EXT_CONF_FILE
+
+    iniset $N_EXT_CONF_FILE DEFAULT verbose True
+    iniset $N_EXT_CONF_FILE DEFAULT debug $ENABLE_DEBUG_LOG_LEVEL
+    iniset $N_EXT_CONF_FILE DEFAULT root_helper "$Q_RR_COMMAND"
 }
 
 # Utility Functions
